@@ -1,7 +1,7 @@
 {
 	"project":"Makepad",
-	"open":["/examples/present.js"],
-	"run":["/examples/present.js"],
+	"open":["/examples/rects.js"],
+	"run":["/examples/rects.js"],
 	"name":"",
 	"folder":[
 		{"name":"platform","folder":[
@@ -84,6 +84,7 @@
 			{"name":"views","folder":[
 				{"name":"button.js"},
 				{"name":"slider.js"},
+				{"name":"rect.js"},
 				{"name":"scrollbar.js"},
 				{"name":"tab.js"},
 				{"name":"code.js"},
@@ -196,6 +197,7 @@
 			{"name":"present.js"},
 			{"name":"present2.js"},
 			{"name":"sliders.js"},
+			{"name":"rects.js"},
 			{"name":"synth.js"},
 			{"name":"circles.js"},
 			{"name":"shop1.js"},

@@ -5,65 +5,73 @@ const rect = class Rect extends require("base/view"){
 		let colors = module.worker.style.colors
 		this.heavy = false
 		this.props = {
-			id     :"",
-			onSlide:undefined,
+			id              :0.0,
+			onPositionChange:undefined,
+			onSelect        :undefined,
+			selected        :0
 		}
 		
 		this.innerPadding = [0, 0, 0, 0]
 		
 		this.states = {
 			// animation!
-			default :{
+			default:{
 				to       :{
 					Rect:{
-						bgColor     :"#fafafa",
-						handlesColor:"white",
-						state       :"default",
+						bgColor:"#fafafa",
+						hovered:0,
 					},
 				},
 				interrupt:false,
 			},
-			hovered :{
+			hovered:{
 				to:{
 					Rect:{
-						bgColor     :"#fafafa",
-						handlesColor:"blue",
-						state       :"hovered",
-					},
-				},
-			},
-			selected:{
-				to:{
-					Rect:{
-						bgColor     :"#fafafa",
-						handlesColor:"blue",
-						state       :"selected",
+						bgColor:"#fafafa",
+						hovered:1,
 					},
 				},
 			},
 		}
 		
-		this.isHovered = () =>{
-			return this.state === "hovered"
-		}
 		
-		//this.wrapped = false
+		
+		this.dragOffset = {x:0, y:0}
 		this.tools = {
 			Rect:require("shaders/quad").extend({
-				bgColor     :"white",
-				handlesColor:"blue",
-				state       :"unselected",
-				vertexStyle :function () {$
-					this.w = 250.
-					this.h = 250.
+				bgColor       :"white",
+				selectionColor:"#18a0fb",
+				state         :"unselected",
+				id            :0.0,
+				selected      :0,
+				hovered       :0,
+				vertexStyle   :function () {$},
+				handleSize    :9.0,
+				handleAt      :function(x, y) {
+					this.rect(x, y, this.handleSize, this.handleSize)
+					this.fillKeep(this.bgColor)
+					this.stroke(this.selectionColor, 1., 1.)
 				},
-				pixel       :function () {$
+				pixel         :function () {$
 					this.viewport()
-					this.box(0, 0, this.w, this.h, 1.)
-					this.fill(this.bgColor)
 					
-					this.box(0, 0, this.w, this.h, 1.)
-					this.stroke(this.handlesColor, 2.)
+					this.rect(this.handleSize / 2., this.handleSize / 2., this.w - this.handleSize, this.h - this.handleSize)
+					//this.fill(vec4(sin(radians(this.id)), cos(radians(this.id)), tan(radians(this.id)), 0.8))
+					this.fill(vec4(1.0, 1.0, 1.0, 1.))
+					
+					if(this.selected > 0.5) {
+						this.rect(this.handleSize / 2., this.handleSize / 2., this.w - this.handleSize, this.h - this.handleSize)
+						this.stroke(this.selectionColor, this.hovered > 0.5?1.8:1.5)
+						
+						this.handleAt(0, 0)
+						this.handleAt(this.w - this.handleSize, 0)
+						this.handleAt(0, this.h - this.handleSize)
+						this.handleAt(this.w - this.handleSize, this.h - this.handleSize)
+					}
+					else if(this.hovered > 0.5) {
+						this.rect(this.handleSize / 2., this.handleSize / 2., this.w - this.handleSize, this.h - this.handleSize)
+						this.stroke(this.selectionColor, 1.8)
+					}
 					
 					return this.result
 				},
@@ -71,60 +79,22 @@ const rect = class Rect extends require("base/view"){
 		}
 	}
 	
-	mapValue(pos) {
-		var v = clamp(pos, 0, 1) * (this.range[1] - this.range[0]) + this.range[0]
-		if(this.step) {
-			v = floor(v / this.step + 0.5) * this.step
-		}
-		return v
-	}
-	
 	onFingerDown(e) {
-		var le = this.toLocal(e)
-		// check where we clicked
-		var pos = (this.value - this.range[0]) / (this.range[1] - this.range[0])
-		if(this.vertical) {
-			var yp = this.dragSize * pos // + this.innerPadding[0]
-			if(le.y > yp && le.y < yp + this.knobSize) {
-				this.dragOffset = le.y - yp // + this.innerPadding[0]
-			}
-			else {
-				// compute pos
-				this.dragOffset = 0.5 * this.knobSize // + this.innerPadding[0]
-				this.value = this.mapValue((le.y - this.dragOffset) / this.dragSize)
-				//if(this.onValueStamp) this.onValueStamp({value:this.value})
-				if(this.onSlide) this.onSlide(this) //this.value)
-			}
-		}
-		else {
-			var xp = this.dragSize * pos // + this.innerPadding[3]
-			
-			if(e.x > xp && e.x < xp + this.knobSize) {
-				this.dragOffset = e.x - xp // + this.innerPadding[3]
-			}
-			else {
-				// compute pos
-				this.dragOffset = 0.5 * this.knobSize // + this.innerPadding[3]
-				this.value = this.mapValue((le.x - this.dragOffset) / this.dragSize)
-				//if(this.onValueStamp) this.onValueStamp({value:this.value})
-				if(this.onSlide) this.onSlide(this)
-			}
-		}
-		
-		this.setState("selected")
+		//var le = this.toLocal(e)
+		let localX = e.x - this.x
+		let localY = e.y - this.y
+		this.dragOffset.x = -localX
+		this.dragOffset.y = -localY
+		//console.log('FINGER DOWN', localX, localY)
+		if(this.onSelect) this.onSelect(this.id)
+		this.setState("hovered")
 	}
 	
 	onFingerMove(e) {
-		var le = this.toLocal(e)
-		//console.log(this.view.name)
-		if(this.vertical) {
-			this.value = this.mapValue((le.y - this.dragOffset) / this.dragSize)
-		}
-		else {
-			this.value = this.mapValue((le.x - this.dragOffset) / this.dragSize)
-		}
-		this.setState("selected", false, {value:this.value})
-		if(this.onSlide) this.onSlide(this)
+		this.x = e.x + this.dragOffset.x
+		this.y = e.y + this.dragOffset.y
+		this.setState("hovered", false, {x:this.x, y:this.y})
+		//console.log('>>> MOVE', this.x, this.y, this.dragOffset)
 	}
 	
 	onFingerOver() {
@@ -136,77 +106,84 @@ const rect = class Rect extends require("base/view"){
 	}
 	
 	onFingerUp(e) {
+		if(this.onPositionChange) this.onPositionChange(this.id, {x:this.x, y:this.y})
 		this.setState(e.samePick?"hovered":"default")
 	}
 	
 	onDraw() {
-		//var pos = (this.value - this.range[0])/(this.range[1]-this.range[0])
-		if(this.vertical) {
-			this.dragSize = this.turtle.height - this.knobSize
-		}
-		else {
-			this.dragSize = this.turtle.width - this.knobSize
-		}
+		//console.log('>>>', 'onDraw')
 		
 		this.drawRect({
-			w       :"100%",
-			h       :"100%",
-			knobSize:this.knobSize,
-			vertical:this.vertical,
-			range   :this.range,
-			step    :this.step,
-			value   :this.value,
+			id      :this.id,
+			x       :this.x,
+			y       :this.y,
+			w       :this.w,
+			h       :this.h,
+			selected:this.selected
 		})
+		
 	}
 }
 
 module.exports = class extends require("base/drawapp"){
 	prototype() {
+		this.rects = []
+		this.selectedRectId = undefined
 		this.tools = {}
-		
 		this.tools = {
 			Rect:rect.extend({
-				Rect:{
-					method   :function (v) {
-						return "white"
-						//return mix('#0090fbff', '#ff0b00ff', abs(sin(this.mesh.y * 18 + v + this.time)))
-					},
-					// pixel: function () {
-					//   this.viewport();
-					//   this.box(0, 0, this.w, this.h, 1);
-					//   this.fill(this.bgColor);
-					//   if (this.vertical < 0.5) {
-					//     this.box(this.slide, 0, this.knobSize, this.h, 1);
-					//     this.fill(this.knobColor);
-					//   } else {
-					//     this.box(0, this.slide, this.w, this.knobSize, 1);
-					//     this.fill(this.method(this.slide / this.h));
-					//   }
-					//   return this.result;
-					// },
-					knobColor:"green",
-				},
+				Rect:{},
 			}),
 		}
 	}
-	onSlide(sld) {
-		_=[sld.id, sld.value]
+	
+	onPositionChange(id, pos) {
+		let rect = this.rects[id]
+		if(rect && (rect.x !== pos.x || rect.y !== pos.y)) {
+			rect.x = pos.x
+			rect.y = pos.y
+			this.redraw(true)
+		}
 	}
-	onDraw() {
-		//_='HELLO WORLD ' + this.time
-		var t = 0.5
-		for(let i = 0;i < 1;i++){
-			//t = clamp(t + (1 - random() * 2) * 0.1, 0, 1)
-			
-			this.drawRect({
-				margin  :0,
-				knobSize:50,
-				vertical:true,
-				value   :t,
-				id      :i,
-				onSlide :this.onSlide,
+	onSelect(id) {
+		console.log('OnSELECT', id)
+		if(this.selectedRectId !== id) {
+			this.selectedRectId = id
+			this.redraw(true)
+		}
+	}
+	randomIntFromInterval(min, max) { // min and max included 
+		return Math.floor(Math.random() * (max - min + 1) + min)
+	}
+	initializeRects() {
+		for(let i = 0;i < 50;i++){
+			this.rects.push({
+				id:i,
+				x :this.randomIntFromInterval(0, 500),
+				y :this.randomIntFromInterval(0, 500),
+				h :this.randomIntFromInterval(100, 200),
+				w :this.randomIntFromInterval(100, 200),
 			})
 		}
-		//this.redraw(true)
+	}
+	onDraw() {
+		console.log('>>> rects>onDraw')
+		var t = 0.5
+		if(this.rects.length === 0) {
+			this.initializeRects()
+		}
+		this.rects.forEach((rect) =>{
+			this.drawRect({
+				x               :rect.x,
+				y               :rect.y,
+				h               :rect.h,
+				w               :rect.w,
+				id              :rect.id,
+				z               :this.selectedRectId === rect.id?1:0,
+				onPositionChange:this.onPositionChange.bind(this),
+				onSelect        :this.onSelect.bind(this),
+				selected        :this.selectedRectId === rect.id?1:0,
+			})
+		})
 	}
 }
